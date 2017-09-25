@@ -19,10 +19,6 @@ class NasdaqOptions(object):
     User inputs:
         Ticker: ticker
             - Ticker for the underlying
-        Expiry: nearby
-            - 1st Nearby: 1
-            - 2nd Nearby: 2
-            - etc ...
         Moneyness: money
             - All moneyness: all
             - In-the-money: in
@@ -49,9 +45,8 @@ class NasdaqOptions(object):
             - CEBO options (Credit Event Binary Options): cebo
     '''
 
-    def __init__(self, ticker, nearby, money='near', market='cbo', expi='stan'):
+    def __init__(self, ticker, money='near', market='cbo', expi='stan'):
         self.ticker = ticker
-        self.nearby = nearby - 1  # ' refers 1st nearby on NASDAQ website
         # self.type = type   # Deprecated
         self.market = market
         self.expi = expi
@@ -60,12 +55,13 @@ class NasdaqOptions(object):
         else:
             self.money = '&money=' + money
 
-    def get_options_table(self):
+    def get_options_table(self, nearby):
         '''
         - Loop over as many webpages as required to get the complete option table for the
         option desired
         - Return a pandas.DataFrame() object
         '''
+        self.nearby = nearby
         # Create an empty pandas.Dataframe object. New data will be appended to
         old_df = pd.DataFrame()
 
@@ -108,6 +104,7 @@ class NasdaqOptions(object):
                 last_page_raw = soup.find('a', {'id': 'quotes_content_left_lb_LastPage'})
                 last_page = re.findall(pattern='(?:page=)(\d+)', string=str(last_page_raw))
                 page_nb = ''.join(last_page)
+                # 1ページ分しかない場合はページ移動のリンク自体が表示されない
                 if page_nb == '':
                     page_nb = 1
                 flag = 0
@@ -143,15 +140,15 @@ class NasdaqOptions(object):
         old_df.rename(columns={old_df.columns[8]: 'Strike'}, inplace=True)
 
         ## Split into 2 dataframes (1 for calls and 1 for puts)
-        calls = old_df.ix[:, 1:7]
-        puts = old_df.ix[:, 10:16]  # Slicing is not incluse of the last column
+        calls = old_df.ix[:, 0:7]
+        puts = old_df.ix[:, 9:16]  # Slicing is not incluse of the last column
 
         # Set 'Strike' column as dataframe index
         calls = calls.set_index(old_df['Strike'])
         puts = puts.set_index(old_df['Strike'])
 
         ## Headers names
-        headers = ['Last', 'Chg', 'Bid', 'Ask', 'Vol', 'OI']
+        headers = ['Day', 'Last', 'Chg', 'Bid', 'Ask', 'Vol', 'OI']
         calls.columns = headers
         puts.columns = headers
 
@@ -159,8 +156,9 @@ class NasdaqOptions(object):
 
 
 if __name__ == '__main__':
-    options = NasdaqOptions('VXX', 7)
-    calls, puts = options.get_options_table()
-
-    # Write on the screen
-    print('\n######\nCalls:\n######\n', calls, '\n\n######\nPuts:\n######\n', puts)
+    options = NasdaqOptions('VXX')
+    for i in range(7):
+        calls, puts = options.get_options_table(i)
+        call.to_csv('2017')
+        # Write on the screen
+        print('\n######\nCalls:\n######\n', calls, '\n\n######\nPuts:\n######\n', puts)
